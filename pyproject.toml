@@ -1,0 +1,11 @@
+[project]
+name = "convolutional-neural-network-from-scratch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "notebook>=7.4.4",
+    "numpy>=2.1.3",
+    "pandas>=2.3.1",
+]

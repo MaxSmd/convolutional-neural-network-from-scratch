@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/__init__.py
+src/layers.py
+src/losses.py
+src/model.py
+src/convolutional_neural_network_from_scratch.egg-info/PKG-INFO
+src/convolutional_neural_network_from_scratch.egg-info/SOURCES.txt
+src/convolutional_neural_network_from_scratch.egg-info/dependency_links.txt
+src/convolutional_neural_network_from_scratch.egg-info/requires.txt
+src/convolutional_neural_network_from_scratch.egg-info/top_level.txt
+src/data/MNIST_CSV/generate_mnist_csv.py
