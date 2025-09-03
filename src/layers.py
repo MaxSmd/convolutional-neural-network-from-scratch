@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
+import numba
 
 class Layer:
     def __init__(self):
@@ -114,34 +116,46 @@ class MaxPool2D(Layer):
         output_height = (input_height - self.pool_size) // self.stride + 1
         output_width = (input_width - self.pool_size) // self.stride + 1
 
-        output = np.zeros((batch_size, output_height, output_width, channels))
-        self.max_indices = np.zeros_like(output, dtype=np.int32)
-        for b in range(batch_size):
-            for h in range(output_height):
-                for w in range(output_width):
-                    for c in range(channels):
-                        window = input_[
-                            b,
-                            h * self.stride: h * self.stride + self.pool_size,
-                            w * self.stride: w * self.stride + self.pool_size,
-                            c
-                        ]
-                        max_idx = np.argmax(window)
-                        self.max_indices[b, h, w, c] = max_idx
-                        output[b, h, w, c] = np.max(window)
+        # Create a view of all possible windows of size pool_size * poolsize on the input_
+        # The shape will be (batch_size, input_height, input_width, channels, pool_size, pool_size)
+        windows = sliding_window_view(input_, (self.pool_size, self.pool_size), axis=(1, 2))
+
+        # Select only the windows at the specified strides
+        windows = windows[:, ::self.stride, ::self.stride, :, :, :]
+
+        # Flatten the 2 dimensional windows to find maximum value in them
+        # The shape becomes (batch_size, output_height, output_width, channels, pool_size * pool_size)
+        flattened_windows = windows.reshape(batch_size, output_height, output_width, channels, -1)
+
+        # Both max_indices and output have shape (batch_size, output_height, output_width, channels)
+        self.max_indices = np.argmax(flattened_windows, axis=-1)
+        output = np.max(flattened_windows, axis=-1)
 
         return output
 
+
     def backward(self, grad_out, learning_rate):
         grad_in = np.zeros_like(self.last_input)
-        batch_size, output_height, output_width, channels = grad_out.shape
-        for b in range(batch_size):
-            for h in range(output_height):
-                for w in range(output_width):
-                    for c in range(channels):
-                        max_idx = self.max_indices[b, h, w, c]
-                        i, j = divmod(max_idx, self.pool_size)
-                        grad_in[b, h * self.stride + i, w * self.stride + j, c] += grad_out[b, h, w, c]
+
+        batch_size, input_height, input_width, channels = self.last_input.shape
+        _, output_height, output_width, _ = grad_out.shape
+
+        # Convert the flat indices from `argmax` back into 2D (row, col) coordinates within each pooling window
+        # Both i and j have shape (batch_size, output_height, output_width, channels)
+        i, j = np.divmod(self.max_indices, self.pool_size)
+
+        # Calculate the absolute coordinates in the input feature map by
+        # adding the stride offset to the window coordinates (i, j)
+        h_idx = (np.arange(output_height)[None, :, None, None] * self.stride + i)
+        w_idx = (np.arange(output_width)[None, None, :, None] * self.stride + j)
+
+        # Create broadcast-compatible indices for batch and channel dimensions.
+        b_idx = np.arange(batch_size)[:, None, None, None]
+        c_idx = np.arange(channels)[None, None, None, :]
+
+        # "Scatter" the incoming gradient to the correct locations. Add the gradient from grad_out to the correct
+        # coordinates of grad_in specified by (b_idx, h_idx, w_idx, c_idx)
+        np.add.at(grad_in, (b_idx, h_idx, w_idx, c_idx), grad_out)
 
         return grad_in
 
