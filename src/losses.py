@@ -8,4 +8,5 @@ def categorical_cross_entropy(y_true, y_pred, epsilon=1e-12):
 def categorical_cross_entropy_prime(y_true, y_pred, epsilon=1e-12):
     y_pred = np.clip(y_pred, epsilon, 1. - epsilon)
     grad = - (y_true / y_pred) / y_true.shape[0]
+    # grad = (y_pred - y_true) / y_true.shape[0]
     return grad

@@ -25,6 +25,17 @@ class Sequential:
             batch_size: int = 32,
             verbose: bool = True,
     ):
+        """
+        Args:
+            x (np.ndarray): (num_samples, height, width, channels)
+            y (np.array): (num_samples, unique(samples))
+            loss (Callable[[np.ndarray, np.ndarray], np.ndarray]): loss function
+            loss_prime (Callable[[np.ndarray, np.ndarray], np.ndarray]): derivation of the loss function
+            epochs (int): number of epochs
+            learning_rate (float): learning rate
+            batch_size (int): batch size
+            verbose (boolean): output epoch loss yes or no
+        """
         n_train = x.shape[0]
 
         for epoch in range(epochs):
@@ -36,10 +47,10 @@ class Sequential:
                 end = start + batch_size
                 xb, yb = x_shuff[start:end], y_shuff[start:end]
 
-                out = self.predict(xb)
+                y_pred = self.predict(xb)
 
-                batch_loss = loss(yb, out)
-                grad = loss_prime(yb, out)
+                batch_loss = loss(yb, y_pred)
+                grad = loss_prime(yb, y_pred)
 
                 for layer in reversed(self.layers):
                     grad = layer.backward(grad, learning_rate)
